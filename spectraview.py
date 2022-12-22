@@ -1,3 +1,9 @@
+import numpy.matlib
+import scipy
+from scipy import interpolate # Part of spectra pre-processing
+from scipy.signal import savgol_filter # Part of spectra-preprocessing
+#from sklearn.base import is_classifier
+from time import strftime
 from tkinter import *
 import tkinter as tk
 from tkinter import ttk
@@ -12,8 +18,6 @@ import os # For filesystem navigation
 import pandas as pd # For dataframe/data manipulation
 import numpy as np # For linear algebra and scietific computing
 import matplotlib.pyplot as plt
-
-#import openpyxl
 import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -22,13 +26,14 @@ from matplotlib import style
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import mean_squared_error
-
-import time
 import sys
 sys.path.insert(0,"../")
-from helper_functions import * 
+#from helper_functions import * 
 
 matplotlib.use('TkAgg',force=True)
+
+global header
+header = 14
 
 SGpoly = 3
 SGframe = 9
@@ -51,7 +56,7 @@ def load_spectra(filename, mode=''):
     '''
     Generic data loader for spectra data. 
     - Determines type of loading depending on file extension. 
-    - Assumes certian charateristics and formatting. 
+    - Assumes certain characteristics and formatting. 
     - Basic error checks built-in
     
     Inputs:
@@ -61,13 +66,8 @@ def load_spectra(filename, mode=''):
         data = pandas dataframe of the loaded spectra (Could convert to a numpy array if so desired)
     '''
     # Option 1. TXT. Assumes txt files are pre-formatted, header stripped, etc. (ie. same as other training files)
-    if filename.split('.')[-1] == 'txt' and mode == 'nonformatted':
-        data = pd.read_csv(filename, engine='python', sep=r'\s{1,}', header=8, names=['x','y'])
-        data['x'] = data['x'].apply(lambda x: int(str(x).strip(',')))
-    elif filename.split('.')[-1] == 'txt' and mode == 'ocean':
-        data = pd.read_csv(filename, engine='python', sep=r'\s{1,}', header=12, names=['x','y'])
-    elif filename.split('.')[-1] == 'txt':
-        data = pd.read_csv(filename, engine='python', sep=r'\s{1,}', header=14, names=['x','y'])
+    if filename.split('.')[-1] == 'txt':
+        data = pd.read_csv(filename, engine='python', sep=r'\s{1,}', header=header, names=['x','y'])
     # Option 2: CSV. Assumes a csv exported from anton-paar with the standard pre-header row structure
     elif filename.split('.')[-1] == 'csv' and mode == 'nonformatted':
         data =  pd.read_csv(filename, header=8, names=['x','y'])
@@ -91,7 +91,7 @@ def load_spectra(filename, mode=''):
 
 def backcor(n ,y, odr, s, fct):
     '''
-    Python implmentation of V. Mazet's backcorr function originally written in MATLAB.
+    Python implimentation of V. Mazet's backcorr function originally written in MATLAB.
     Please see https://www.mathworks.com/matlabcentral/fileexchange/27429-background-correction
     for more detailed explaination and documentation.
     
@@ -239,7 +239,7 @@ def preprocesing_pipeline(data, **kwargs):
     Inputs: 
         data = pandas dataframe with 2 columns
         **kwargs:
-            - SGpoly = integer
+            - SGpoly = integer  
             - SGframe = integer
             - wave_numb = numpy array of shape [x,] (generated from np.linspace)
         
@@ -418,41 +418,44 @@ def openfiles():
         initialdir='/',
         filetypes=filetypes)
     
-    wlow = (wlowint.get())    
-    whigh = (whighint.get()) 
-    wspace = whigh - wlow + 1
-    wave = np.linspace(wlow, whigh, wspace)
-    global wave_numb
-    wave_numb = wave.transpose() 
-    spectra_data, spectra_labels = prepare_training_data_ind_files(filenames,
-                                                         file_type='txt',
-                                                         SGpoly=SGpoly,
-                                                         SGframe=SGframe,
-                                                         wlow=wlow,
-                                                         whigh=whigh,
-                                                         wave_numb=wave_numb)
-                                                         
-    spectra_avg = (np.average(spectra_data, axis=0))
-    assignspectra(spectra_avg)
+    if filenames:
+        wlow = (wlowint.get())    
+        whigh = (whighint.get()) 
+        wspace = whigh - wlow + 1
+        wave = np.linspace(wlow, whigh, wspace)
+        global wave_numb
+        wave_numb = wave.transpose() 
+        spectra_data, spectra_labels = prepare_training_data_ind_files(filenames,
+                                                            file_type='txt',
+                                                            SGpoly=SGpoly,
+                                                            SGframe=SGframe,
+                                                            wlow=wlow,
+                                                            whigh=whigh,
+                                                            wave_numb=wave_numb)
+                                                            
+        spectra_avg = (np.average(spectra_data, axis=0))
+        assignspectra(spectra_avg)
 
 def openfolder():
-    file_path = fd.askdirectory() + "\\"
-    wlow = (wlowint.get())    
-    whigh = (whighint.get()) 
-    wspace = whigh - wlow + 1
-    wave = np.linspace(wlow, whigh, wspace)
-    global wave_numb
-    wave_numb = wave.transpose() 
-    spectra_data, spectra_labels = prepare_training_data(file_path,
-                                                         file_type='txt',
-                                                         SGpoly=SGpoly,
-                                                         SGframe=SGframe,
-                                                         wlow=wlow,
-                                                         whigh=whigh,
-                                                         wave_numb=wave_numb)
-                                                         
-    spectra_avg = (np.average(spectra_data, axis=0))
-    assignspectra(spectra_avg)
+    file_path = fd.askdirectory()
+    if file_path:    
+        file_path = file_path + "\\"
+        wlow = (wlowint.get())    
+        whigh = (whighint.get()) 
+        wspace = whigh - wlow + 1
+        wave = np.linspace(wlow, whigh, wspace)
+        global wave_numb
+        wave_numb = wave.transpose() 
+        spectra_data, spectra_labels = prepare_training_data(file_path,
+                                                            file_type='txt',
+                                                            SGpoly=SGpoly,
+                                                            SGframe=SGframe,
+                                                            wlow=wlow,
+                                                            whigh=whigh,
+                                                            wave_numb=wave_numb)
+                                                            
+        spectra_avg = (np.average(spectra_data, axis=0))
+        assignspectra(spectra_avg)
 
 
 def assignspectra(spectra_avg):
@@ -503,13 +506,11 @@ def assigntocombo_ca():
         add_spectra = spectra5
         add_name = selectfive["text"]
     ca_dict[add_name] = (add_spectra,)
-    #ca_combo['values'] += (add_name)
+
     ca_combo['values'] = (*ca_combo['values'],add_name)
 
-    if ca_combo_count == 1:
-        ca_combo.grid(column = 1, row = 2)
-        ca_combo_count = 2
-        select_ca.grid(column = 0, row = 2,padx = 5,pady =5,sticky = "W")
+    ca_combo.grid(column = 1, row = 2)
+    select_ca.grid(column = 0, row = 2,padx = 5,pady =5,sticky = "W")
 
 her_combo_count = 1
 def assigntocombo_her():
@@ -532,13 +533,11 @@ def assigntocombo_her():
         add_spectra = spectra5
         add_name = selectfive["text"]
     her_dict[add_name] = (add_spectra,)
-    #ca_combo['values'] += (add_name)
+
     her_combo['values'] = (*her_combo['values'],add_name)
 
-    if her_combo_count == 1:
-        her_combo.grid(column = 1, row = 3)
-        her_combo_count = 2
-        select_her.grid(column = 0, row = 3,padx = 5,pady =5,sticky = "W")
+    her_combo.grid(column = 1, row = 3)
+    select_her.grid(column = 0, row = 3,padx = 5,pady =5,sticky = "W")
     
 ki_combo_count = 1
 def assigntocombo_ki():
@@ -561,13 +560,12 @@ def assigntocombo_ki():
         add_spectra = spectra5
         add_name = selectfive["text"]
     ki_dict[add_name] = (add_spectra,)
-    #ca_combo['values'] += (add_name)
+
     ki_combo['values'] = (*ki_combo['values'],add_name)
 
-    if ki_combo_count == 1:
-        ki_combo.grid(column = 1, row = 4)
-        ki_combo_count = 2
-        select_ki.grid(column = 0, row = 4,padx = 5,pady =5,sticky = "W")
+
+    ki_combo.grid(column = 1, row = 4)
+    select_ki.grid(column = 0, row = 4,padx = 5,pady =5,sticky = "W")
 
 
 def plotspectra():
@@ -575,14 +573,19 @@ def plotspectra():
     yabbadabbado = (spectraselect.get())
     if yabbadabbado == "one":
         plotted_spectra = spectra1
+        plottedname = selectone["text"]
     if yabbadabbado == "two":
         plotted_spectra = spectra2
+        plottedname = selecttwo["text"]
     if yabbadabbado ==  "three":
         plotted_spectra = spectra3
+        plottedname = selectthree["text"]
     if yabbadabbado ==  "four":
         plotted_spectra = spectra4
+        plottedname = selectfour["text"]
     if yabbadabbado ==  "five":
         plotted_spectra = spectra5
+        plottedname = selectfive["text"]
     if yabbadabbado ==  "ca":
         plottedname = ca_select.get()
         plotted_spectra = (ca_dict[plottedname])[0]
@@ -593,20 +596,41 @@ def plotspectra():
         plottedname = ki_select.get()
         plotted_spectra = (ki_dict[plottedname])[0]
 
-    specplot.plot(wave_numb,plotted_spectra)
+    specplot.plot(wave_numb,plotted_spectra, label = plottedname)
     #axes = plt.axes()
-    
-    specplot.set_xlabel('Raman Shift (cm^-1)')
+    specplot.legend()
+
+    specplot.set_xlabel('Raman Shift ($cm^-1$)')
     specplot.set_ylabel('Intensity')
     specplot.set_xlim([np.amin(wave_numb), np.amax(wave_numb)])
 
     canvas.draw()
-    #specname = file_path
-    #spectra_name = ttk.Label(right_frame, background = "white", text = specname, font = UnderlinedFont)
-    #spectra_name.grid(row=0,column=0, sticky = (N,W))
 
 
 baselinecount = 1
+
+def addbaseline():
+    file_path = fd.askdirectory()
+    if file_path:
+        file_path = file_path + "\\"
+        wlow = (wlowint.get())    
+        whigh = (whighint.get()) 
+        wspace = whigh - wlow + 1
+        wave = np.linspace(wlow, whigh, wspace)
+        global wave_numb
+        wave_numb = wave.transpose() 
+        spectra_data = prepare_calibration_data(file_path,
+                                                            file_type='txt',
+                                                            SGpoly=SGpoly,
+                                                            SGframe=SGframe,
+                                                            wlow=wlow,
+                                                            whigh=whigh,
+                                                            wave_numb=wave_numb)
+        global baselinespectra                                                     
+        baselinespectra = np.average(spectra_data,axis=0)
+        global baselinecount
+        baselinecount = 2
+        return baselinespectra
 
 def plotbaseline():
     global baselinecount
@@ -630,17 +654,19 @@ def plotbaseline():
         baselinespectra = (np.average(spectra_data, axis=0))
         baselinecount = 2
     
-        specplot.plot(wave_numb,baselinespectra)
+        specplot.plot(wave_numb,baselinespectra, label = "Baseline")
+        specplot.legend()
         #axes = plt.axes()
-        specplot.set_xlabel('Raman Shift (cm^-1)')
+        specplot.set_xlabel('Raman Shift ($cm^{-1}$)')
         specplot.set_ylabel('Intensity')
         specplot.set_xlim([np.amin(wave_numb), np.amax(wave_numb)])
         canvas.draw()
 
     elif baselinecount == 2:
-        specplot.plot(wave_numb,baselinespectra)
+        specplot.plot(wave_numb,baselinespectra,label = "Baseline")
+        specplot.legend()
         axes = plt.axes()
-        specplot.set_xlabel('Raman Shift (cm^-1)')
+        specplot.set_xlabel('Raman Shift ($cm^-1$)')
         specplot.set_ylabel('Intensity')
         specplot.set_xlim([np.amin(wave_numb), np.amax(wave_numb)])
         canvas.draw()
@@ -676,6 +702,23 @@ def clearspectra():
     selectfour.grid_forget()
     selectfive.grid_forget()
 
+def clearset():
+    yabbadabbado = (spectraselect.get())
+    if yabbadabbado ==  "ca":
+        ca_combo['values'] = []
+        ca_dict = {}
+        ca_combo.grid_forget()
+        select_ca.grid_forget()
+    if yabbadabbado ==  "her":
+        her_combo['values'] = []
+        her_dict = {}    
+        her_combo.grid_forget()
+        select_her.grid_forget()
+    if yabbadabbado ==  "ki":
+        ki_combo['values'] = []
+        ki_dict = {}
+        ki_combo.grid_forget()
+        select_ki.grid_forget()
 
 def clearplot():
     specplot.clear()
@@ -694,6 +737,15 @@ def savefile():
         saved_spectra = spectra4
     if bingbong ==  "five":
         saved_spectra = spectra5
+    if bingbong ==  "ca":
+        savedname = ca_select.get()
+        saved_spectra = (ca_dict[savedname])[0]
+    if bingbong ==  "her":
+        savedname = her_select.get()
+        saved_spectra = (her_dict[savedname])[0]    
+    if bingbong ==  "ki":
+        savedname = ki_select.get()
+        saved_spectra = (ki_dict[savedname])[0]
 
     files = [('All Files', '*.*'), 
              ('Excel Files', '*.xlsx')]
@@ -704,22 +756,24 @@ def savefile():
 
 
 def addcalibrationfiles():
-    file_path = fd.askdirectory() + "\\"
-    wlow = (wlowint.get())    
-    whigh = (whighint.get()) 
-    wspace = whigh - wlow + 1
-    wave = np.linspace(wlow, whigh, wspace)
-    global wave_numb
-    wave_numb = wave.transpose() 
-    spectra_data = prepare_calibration_data(file_path,
-                                                         file_type='txt',
-                                                         SGpoly=SGpoly,
-                                                         SGframe=SGframe,
-                                                         wlow=wlow,
-                                                         whigh=whigh,
-                                                         wave_numb=wave_numb)
-                                                         
-    assign_cal_spectra(spectra_data)
+    file_path = fd.askdirectory()
+    if file_path:
+        file_path = file_path + "\\"
+        wlow = (wlowint.get())    
+        whigh = (whighint.get()) 
+        wspace = whigh - wlow + 1
+        wave = np.linspace(wlow, whigh, wspace)
+        global wave_numb
+        wave_numb = wave.transpose() 
+        spectra_data = prepare_calibration_data(file_path,
+                                                            file_type='txt',
+                                                            SGpoly=SGpoly,
+                                                            SGframe=SGframe,
+                                                            wlow=wlow,
+                                                            whigh=whigh,
+                                                            wave_numb=wave_numb)
+                                                            
+        assign_cal_spectra(spectra_data)
 
 def assign_cal_spectra(spectra_data):
     global cal_spectracount
@@ -778,23 +832,25 @@ def assign_cal_spectra(spectra_data):
     cal_spectracount = cal_spectracount + 1
 
 def addtestfiles():
-    file_path = fd.askdirectory() + "\\"
-    wlow = (wlowint.get())    
-    whigh = (whighint.get()) 
-    wspace = whigh - wlow + 1
-    wave = np.linspace(wlow, whigh, wspace)
-    global wave_numb
-    wave_numb = wave.transpose() 
-    spectra_data = prepare_calibration_data(file_path,
-                                                         file_type='txt',
-                                                         SGpoly=SGpoly,
-                                                         SGframe=SGframe,
-                                                         wlow=wlow,
-                                                         whigh=whigh,
-                                                         wave_numb=wave_numb)
-    global test_spectra                                                     
-    test_spectra = spectra_data
-    return test_spectra
+    file_path = fd.askdirectory()
+    if file_path:
+        file_path = file_path + "\\"
+        wlow = (wlowint.get())    
+        whigh = (whighint.get()) 
+        wspace = whigh - wlow + 1
+        wave = np.linspace(wlow, whigh, wspace)
+        global wave_numb
+        wave_numb = wave.transpose() 
+        spectra_data = prepare_calibration_data(file_path,
+                                                            file_type='txt',
+                                                            SGpoly=SGpoly,
+                                                            SGframe=SGframe,
+                                                            wlow=wlow,
+                                                            whigh=whigh,
+                                                            wave_numb=wave_numb)
+        global test_spectra                                                     
+        test_spectra = spectra_data
+        return test_spectra
 
 def createcurve():
     try:
@@ -938,14 +994,14 @@ def createcurve():
     global msemin
     msemin = np.argmin(mse)
 
-def plotcalibrationcurve():
-
-    X = calibration_spectra
-    Y = calibration_conc
-
     pls_opt = PLSRegression(n_components=msemin+1)
     pls_opt.fit(X, Y)
     Z = pls_opt.predict(X)
+
+    global ymax
+    ymax = np.amax(Y)
+    global ymin
+    ymin = np.amin(Y)
 
     poly = np.polyfit(Y,Z,1)
 
@@ -997,9 +1053,9 @@ def plotunknownspectra():
 
     pls_opt = PLSRegression(n_components=msemin+1)
     pls_opt.fit(X, Y)
-    Z = pls_opt.predict(test_spectra)
+    Zpredictions = pls_opt.predict(test_spectra)
 
-    Z = np.average(Z)
+    Z = np.average(Zpredictions)
     zpercent = int(threshold)*(0.2)
 
     if Z > (threshold + zpercent):
@@ -1009,26 +1065,43 @@ def plotunknownspectra():
     elif Z < (threshold - zpercent):
         greenlight()
     
+    threshlinex = np.linspace(ymin,ymax, num = 50) 
+    threshliney = []
+    for i in threshlinex:
+        threshliney.append(threshold)
 
     curveplot.scatter(Z,Z)
+    curveplot.plot(threshlinex,threshliney)
     curveplot.set_xlabel('Actual Concentration')
     curveplot.set_ylabel('Predicted Concentration')
     curveplot.set_title('Prediction Curve')
     curvecanvas.draw()
 
 def redlight():
-    redlighttext.grid(row = 5, column = 0)
-
+    orangelighttext.grid_forget()
+    greenlighttext.grid_forget()
+    redlighttext.grid(row = 5, column = 0,pady = 20)
+    
 def orangelight():
-    orangelighttext.grid(row = 5, column = 0)
+    redlighttext.grid_forget()
+    greenlighttext.grid_forget()
+    orangelighttext.grid(row = 5, column = 0,pady = 20)
     
 def greenlight():
-    greenlighttext.grid(row = 5, column = 0)
+    redlighttext.grid_forget()
+    orangelighttext.grid_forget()
+    greenlighttext.grid(row = 5, column = 0,pady = 20)
+
+def clearcurve():
+    curveplot.clear()
+    #curveplot.plot()
+    curvecanvas.draw()
+
 
 left_frame = Frame(root, background='grey')
 left_frame.grid(row=0, column=0, padx=10, pady=5, sticky = (N,W))
 right_frame = Frame(root, background='white')
-right_frame.grid(row=0, column=1, sticky = (S,E))
+right_frame.grid(row=0, column=1, sticky = (E))
 
 
 specname = ""
@@ -1152,27 +1225,31 @@ concentration_label10 = ttk.Label(buttonbox2, text = "Concentration 10:")
 screenw = (root.winfo_screenwidth())
 screenh = (root.winfo_screenheight())
 
-wid = screenw/175
-hei = screenh/175
+wid = screenw/150
+hei = screenh/150
 
 figframe = plt.Figure(figsize=(wid, hei))
 specplot = figframe.add_subplot(111)
 canvas = FigureCanvasTkAgg(figframe, right_frame)
-canvas.get_tk_widget().grid(column = 0, row = 1, sticky = (S,E))
+canvas.get_tk_widget().grid(column = 0, row = 0, sticky = (S,E))
 specplot.grid()
 canvas.draw()
 
-curveframe = figframe = plt.Figure(figsize=(screenw/300, screenh/300))
-curveplot = figframe.add_subplot(111)
+curveframe = plt.Figure(figsize=(wid/2, hei/2))
+curveplot = curveframe.add_subplot(111)
 curvecanvas = FigureCanvasTkAgg(curveframe, right_frame)
-curvecanvas.get_tk_widget().grid(column = 0, row = 2, sticky = (S))
+curvecanvas.get_tk_widget().grid(column = 0, row = 1, sticky = (N),pady = 5)
+curveframe.subplots_adjust(bottom=0.15)
 curveplot.grid()
 curvecanvas.draw()
 
 
-redlighttext = ttk.Label(left_frame, text = "Warning! Biomarker levels predicted far exceed threshold level. Cancer probable." , background = "red")
-orangelighttext = ttk.Label(left_frame, text = "Caution. Biomarker levels predicted are close to threshold level. Cancer possible", background = "orange")
-greenlighttext = ttk.Label(left_frame, text = "Nominal Biomarker levels predicted. Cancer unlikely.", background = "green")
+redlighttext = ttk.Label(left_frame, text = "Caution" , background = "red")
+orangelighttext = ttk.Label(left_frame, text = "Alert", background = "orange")
+greenlighttext = ttk.Label(left_frame, text = "Normal", background = "green")
+
+#buffer = ttk.Label(right_frame, text = "")
+#buffer.grid(column =0, row = 3)
 
 wlowint = IntVar(root, name ="wlowint")
 root.setvar(name ="wlowint", value = 500)
@@ -1234,8 +1311,16 @@ clear_spectra_button = ttk.Button(buttonbox, text = "Clear Saved Spectra")
 clear_spectra_button.grid(column=2, row = 0, padx =5)
 clear_spectra_button.configure(command=clearspectra)
 
+clear_set_button = ttk.Button(buttonbox, text = "Clear Selected Set")
+clear_set_button.grid(column=3, row = 0, padx = 5)
+clear_set_button.configure(command = clearset)
+
+add_baseline_button = ttk.Button(content, text = "Add Baseline")
+add_baseline_button.grid(column = 0, row = 3, padx = 5, pady = 5, sticky = "W")
+add_baseline_button.configure(command = addbaseline)
+
 baseline_button = ttk.Button(content, text = "Plot Baseline")
-baseline_button.grid(column = 0, row = 3, padx = 5, sticky = "W")
+baseline_button.grid(column = 0, row = 4, padx = 5, sticky = "W")
 baseline_button.configure(command = plotbaseline)
 
 add_calibration_button = ttk.Button(buttonbox2, text = "Add Calibration Files")
@@ -1246,33 +1331,29 @@ add_test_button = ttk.Button(buttonbox2, text = "Add Files to Analyze")
 add_test_button.grid(column = 0, row =1, padx = 10, pady = 2, sticky = "W")
 add_test_button.configure(command = addtestfiles)
 
-curve_button = ttk.Button(buttonbox2, text = "Calculate Curve")
-curve_button.grid(column = 1, row = 1, padx = 10, pady = 2, sticky = "E")
+curve_button = ttk.Button(buttonbox2, text = "Calibrate Curve")
+curve_button.grid(column = 0, row = 2, padx = 10, pady = 2, sticky = "W")
 curve_button.configure(command = createcurve)
 
-plot_curve_button = ttk.Button(buttonbox2, text = "Plot Curve")
-plot_curve_button.grid(column = 0, row = 2, padx = 10, pady = 2, sticky = "W")
-plot_curve_button.configure(command = plotcalibrationcurve)
+#plot_curve_button = ttk.Button(buttonbox2, text = "Plot Curve")
+#plot_curve_button.grid(column = 0, row = 2, padx = 10, pady = 2, sticky = "W")
+#plot_curve_button.configure(command = plotcalibrationcurve)
 
 plot_predictions_button = ttk.Button(buttonbox2, text = "Plot Predictions")
 plot_predictions_button.grid(column = 1, row = 2, padx = 10, pady = 2, sticky = "E")
 plot_predictions_button.configure(command = plotunknownspectra)
 
 set_thresh_button = ttk.Button(buttonbox2, text = "Set Threshold")
-set_thresh_button.grid(column = 3, row =3)
+set_thresh_button.grid(column = 1, row =3)
 set_thresh_button.configure(command = setthreshold)
 
 threshold_string = tk.StringVar()
 threshold_entry = ttk.Entry(buttonbox2, textvariable = threshold_string)
-threshold_entry.grid(column = 4, row = 3)
+threshold_entry.grid(column = 2, row = 3, pady = 10)
 
-#thresholdlabel = ttk.Label(buttonbox2, text = "Enter Threshold Value:")
-#thresholdlabel.grid(column = 3, row =3)
-
-
-
-# add padding to the frame and show it
-#frame.grid(padx=10, pady=10)
+clear_curve_button = ttk.Button(buttonbox2, text = "Clear Curve Plot")
+clear_curve_button.grid(column = 2, row = 2, padx = 10, pady = 2, sticky = "E")
+clear_curve_button.configure(command = clearcurve)
 
 openfile = ttk.Button(content, text="Open File", command = openfiles)
 openfolderbtn = ttk.Button(content, text="Open Folder", command = openfolder)
@@ -1282,23 +1363,13 @@ titlelabel = ttk.Label(right_frame, text = "SpectraView", font = TitleFont )
 titlelabel.grid(row = 0, column=0, sticky = (N,E))
 
 #filter = ttk.Checkbutton(content, text="Filter")
-#two = ttk.Checkbutton(content, text="Two", variable=twovar, onvalue=True)
-#three = ttk.Checkbutton(content, text="Three", variable=threevar, onvalue=True)
-#ok = ttk.Button(content, text="Okay")
-#cancel = ttk.Button(content, text="Cancel")
-
 
 content.grid(column=0, row=0, sticky=(N, S, E, W))
 buttonbox.grid(column=0, row=1, sticky=(N, S, E, W))
-#frame.grid(column=3, row=1, columnspan=3, rowspan=2, sticky=(N, S, E, W))
 openfile.grid(column=0, row=0, columnspan=2, sticky=(N, W),padx=5)
 openfolderbtn.grid(column=0, row=1, columnspan=2, sticky=(N, W),padx=5)
-clearplotbtn.grid(column=0, row=2, columnspan=2, sticky=(N,W), pady=5, padx=5)
+clearplotbtn.grid(column=0, row=2, columnspan=2, sticky=(N,W), padx=5)
 saveas.grid(column=0, row =0, columnspan=2, sticky=(N,W), pady=0, padx=100)
-#filter.grid(column=0, row=3)
-
-#ok.grid(column=3, row=4)
-#cancel.grid(column=4, row=4)
 
 
 root.columnconfigure(0, weight=1)
