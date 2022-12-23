@@ -250,8 +250,14 @@ def preprocesing_pipeline(data, **kwargs):
     #data2 = data.iloc[1:]
     
     x0 = data['x'].values
-    y0 = savgol_filter(data['y'].values, polyorder=kwargs['SGpoly'], window_length=kwargs['SGframe'])
+    if filtervar.get() == 1:
+        y0 = savgol_filter(data['y'].values, polyorder=kwargs['SGpoly'], window_length=kwargs['SGframe'])
+        y_zint = SGfilter_Baseline_Int(x0, y0)
+        yzint = apply_interpolation(x0, kwargs['wave_numb'], y_zint)
     
+    elif filtervar.get() == 0:
+        y_zint = data['y'].values
+        yzint = apply_interpolation(x0, kwargs['wave_numb'], y_zint)
     #lam = kwargs.get('Lambda',1.0*10**-3)
     #y = data['y'].values
     #L = len(y)
@@ -261,9 +267,7 @@ def preprocesing_pipeline(data, **kwargs):
     #Z = W + lam * D.dot(D.transpose())
     #y0 = scipy.sparse.linalg.spsolve(Z, w*y)
     
-    y_zint = SGfilter_Baseline_Int(x0, y0)
-    yzint = apply_interpolation(x0, kwargs['wave_numb'], y_zint)
-    
+       
     processed_spectra = (yzint)
     
     return processed_spectra
@@ -600,7 +604,7 @@ def plotspectra():
     #axes = plt.axes()
     specplot.legend()
 
-    specplot.set_xlabel('Raman Shift ($cm^-1$)')
+    specplot.set_xlabel('Raman Shift ($cm^{-1}$)')
     specplot.set_ylabel('Intensity')
     specplot.set_xlim([np.amin(wave_numb), np.amax(wave_numb)])
 
@@ -666,7 +670,7 @@ def plotbaseline():
         specplot.plot(wave_numb,baselinespectra,label = "Baseline")
         specplot.legend()
         axes = plt.axes()
-        specplot.set_xlabel('Raman Shift ($cm^-1$)')
+        specplot.set_xlabel('Raman Shift ($cm^{-1}$)')
         specplot.set_ylabel('Intensity')
         specplot.set_xlim([np.amin(wave_numb), np.amax(wave_numb)])
         canvas.draw()
@@ -1362,7 +1366,9 @@ saveas = ttk.Button(content, text="Save As", command = savefile)
 titlelabel = ttk.Label(right_frame, text = "SpectraView", font = TitleFont )
 titlelabel.grid(row = 0, column=0, sticky = (N,E))
 
-#filter = ttk.Checkbutton(content, text="Filter")
+filtervar = tk.IntVar()
+filter = ttk.Checkbutton(content, text="Filter", variable=filtervar, onvalue=1, offvalue=0)
+filter.grid(row = 5, column =0, pady = 10)
 
 content.grid(column=0, row=0, sticky=(N, S, E, W))
 buttonbox.grid(column=0, row=1, sticky=(N, S, E, W))
